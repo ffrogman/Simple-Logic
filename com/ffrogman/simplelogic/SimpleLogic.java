@@ -30,6 +30,7 @@ import java.util.ArrayList;
 import java.io.*;
 import java.util.Scanner;
 import org.bukkit.block.BlockState;
+import org.bukkit.ChatColor;
 
 public class SimpleLogic extends JavaPlugin implements Listener {
 
@@ -218,6 +219,8 @@ public class SimpleLogic extends JavaPlugin implements Listener {
 
     @EventHandler
     public void redstoneChange(BlockRedstoneEvent event) {
+                if(event.isCancelled())
+            return;
         for (int i = 0; i < signList.size(); i++) {
             LogicSign L = signList.get(i);
             if (!L.isSign()) {
@@ -231,9 +234,11 @@ public class SimpleLogic extends JavaPlugin implements Listener {
 
     @EventHandler
     public void signChange(SignChangeEvent event) {
+        if(event.isCancelled())
+            return;
         Block sign = event.getBlock();
         if ((sign.getType() == Material.WALL_SIGN) && event.getLine(0).equalsIgnoreCase("[logic]") && (event.getLine(1).equals("left") || event.getLine(1).equals("right") || event.getLine(1).equals("back"))) {
-            event.setLine(3, "Correct");
+            event.setLine(0, ChatColor.DARK_BLUE +"[Logic]");
             LogicSign L = new LogicSign(sign.getWorld(), sign.getX(), sign.getY(), sign.getZ(), event.getLine(1), event.getLine(2));
             signList.add(L);
             writeSign(L);
