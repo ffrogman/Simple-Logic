@@ -1,7 +1,7 @@
-author: ffrogman
+authors: [ffrogman, ngc0202]
 database: false
 description: Allows sign based redstone logic gates.
 main: com.ffrogman.simplelogic.SimpleLogic
 name: SimpleLogic
 startup: postworld
-version: 'Beta 1.0'
+version: '1.1 Beta'

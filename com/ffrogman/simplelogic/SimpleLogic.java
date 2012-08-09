@@ -1,22 +1,30 @@
 /*
-    SimpleLogic: A Bukkit plugin that adds sign based logic gates to Minecraft
-    Copyright (C) 2012  ffrogman
+SimpleLogic: A Bukkit plugin that adds sign based logic gates to Minecraft
+Copyright (C) 2012  ffrogman
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 package com.ffrogman.simplelogic;
 
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.PrintWriter;
 import org.bukkit.event.block.SignChangeEvent;
 import org.bukkit.event.block.BlockRedstoneEvent;
 import org.bukkit.event.block.BlockBreakEvent;
@@ -27,7 +35,6 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.event.Listener;
 import org.bukkit.event.EventHandler;
 import java.util.ArrayList;
-import java.io.*;
 import java.util.Scanner;
 import org.bukkit.block.BlockState;
 import org.bukkit.ChatColor;
@@ -36,6 +43,7 @@ public class SimpleLogic extends JavaPlugin implements Listener {
 
     ArrayList<LogicSign> signList = new ArrayList();
 
+    @Override
     public void onEnable() {
         getServer().getPluginManager().registerEvents(this, this);
         File signData = new File(getDataFolder(), "signs.txt");
@@ -45,33 +53,24 @@ public class SimpleLogic extends JavaPlugin implements Listener {
             System.out.println("Could not create file. SimpleLogic may not work.");
         }
         checkAllSigns();
-        System.out.println(this + " is now enabled!");
-    }
-
-    public void onDisable() {
-        System.out.println(this + "is now disabled.");
     }
 
     public static boolean logicOperator(boolean A, boolean B, String s) {
         if (s.equals("and")) {
             return A && B;
-        }
-        if (s.equals("or")) {
+        } else if (s.equals("or")) {
             return A || B;
-        }
-        if (s.equals("xor")) {
+        } else if (s.equals("xor")) {
             return (A ^ B);
-        }
-        if (s.equals("nor")) {
+        } else if (s.equals("nor")) {
             return (!A && !B);
-        }
-        if (s.equals("xnor")) {
+        } else if (s.equals("xnor")) {
             return (!(A ^ B));
-        }
-        if (s.equals("nand")) {
+        } else if (s.equals("nand")) {
             return (!(A && B));
+        } else {
+            return false;
         }
-        return false;
     }
 
     public void removeLine(String s) {
@@ -113,7 +112,6 @@ public class SimpleLogic extends JavaPlugin implements Listener {
         } catch (IOException e) {
             System.out.println("Error writing to file");
         }
-
     }
 
     public void loadSigns(File file) throws IOException {
@@ -121,7 +119,6 @@ public class SimpleLogic extends JavaPlugin implements Listener {
         getDataFolder().mkdir();
         file.createNewFile();
         String curLine = "foo";
-        String text = "";
         Scanner rfile = null;
         try {
             rfile = new Scanner(file);
@@ -165,9 +162,8 @@ public class SimpleLogic extends JavaPlugin implements Listener {
         if (b.getType() == Material.WALL_SIGN) {
             BlockState state = b.getState();
             if (state instanceof Sign) {
-                return (Sign) b;
+                return (Sign) state;
             }
-
         }
         return null;
     }
@@ -184,14 +180,21 @@ public class SimpleLogic extends JavaPlugin implements Listener {
     }
 
     public void checkPower(LogicSign L) {
+        Sign sign = getSign(L.getBlock());
+        if (!L.canTorch()) {
+            sign.setLine(0, ChatColor.DARK_RED + "[Logic]");
+            sign.update();
+            return;
+        }
+        sign.setLine(0, ChatColor.DARK_BLUE + "[Logic]");
+        sign.update();
         if (logicOperator(L.inputA.isBlockPowered(), L.inputB.isBlockPowered(), L.operator)) {
-            if (L.output.getTypeId() == 0 && L.output.getRelative(0, -1, 0).getTypeId() != 0) {
-                L.output.setTypeId(76);
+            if (L.output.getTypeId() != 76) {
+                L.output.setTypeIdAndData(76, (byte) 0x5, true);
             }
-            L.output.setData((byte) 0x5);
         } else {
-            if (L.output.getTypeId() == 76 || L.output.getTypeId() == 75) {
-                L.output.setTypeId(0);
+            if (L.output.getTypeId() != 75) {
+                L.output.setTypeIdAndData(75, (byte) 0x5, true);
             }
         }
     }
@@ -219,8 +222,6 @@ public class SimpleLogic extends JavaPlugin implements Listener {
 
     @EventHandler
     public void redstoneChange(BlockRedstoneEvent event) {
-                if(event.isCancelled())
-            return;
         for (int i = 0; i < signList.size(); i++) {
             LogicSign L = signList.get(i);
             if (!L.isSign()) {
@@ -234,15 +235,38 @@ public class SimpleLogic extends JavaPlugin implements Listener {
 
     @EventHandler
     public void signChange(SignChangeEvent event) {
-        if(event.isCancelled())
+        if (event.isCancelled()) {
             return;
+        }
         Block sign = event.getBlock();
-        if ((sign.getType() == Material.WALL_SIGN) && event.getLine(0).equalsIgnoreCase("[logic]") && (event.getLine(1).equals("left") || event.getLine(1).equals("right") || event.getLine(1).equals("back"))) {
-            event.setLine(0, ChatColor.DARK_BLUE +"[Logic]");
+        if (sign.getType() != Material.WALL_SIGN) {
+            return;
+        }
+        if (!event.getLine(0).equalsIgnoreCase("[Logic]")) {
+            return;
+        }
+        if (isFormatted(event.getLines())) {
             LogicSign L = new LogicSign(sign.getWorld(), sign.getX(), sign.getY(), sign.getZ(), event.getLine(1), event.getLine(2));
+            if (L.canTorch()) {
+                event.setLine(0, ChatColor.DARK_BLUE + "[Logic]");
+            } else {
+                event.setLine(0, ChatColor.DARK_RED + "[Logic]");
+            }
             signList.add(L);
             writeSign(L);
             checkPower(L);
+        } else {
+            event.setLine(0, ChatColor.DARK_RED + "[Logic]");
         }
+    }
+
+    private boolean isFormatted(String[] lines) {
+        if (!(lines[1].equalsIgnoreCase("left") || lines[1].equalsIgnoreCase("right") || lines[1].equalsIgnoreCase("back"))) {
+            return false;
+        }
+        if (!(lines[2].equalsIgnoreCase("and") || lines[2].equalsIgnoreCase("or") || lines[2].equalsIgnoreCase("xor") || lines[2].equalsIgnoreCase("nor") || lines[2].equalsIgnoreCase("xnor") || lines[2].equalsIgnoreCase("xnand"))) {
+            return false;
+        }
+        return true;
     }
 }
