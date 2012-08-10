@@ -38,6 +38,7 @@ import java.util.ArrayList;
 import java.util.Scanner;
 import org.bukkit.block.BlockState;
 import org.bukkit.ChatColor;
+import org.bukkit.event.EventPriority;
 
 public class SimpleLogic extends JavaPlugin implements Listener {
 
@@ -199,23 +200,33 @@ public class SimpleLogic extends JavaPlugin implements Listener {
         }
     }
 
-    @EventHandler
+    @EventHandler(priority = EventPriority.HIGHEST)
     public void blockBreak(BlockBreakEvent event) {
         Block b = event.getBlock();
-        if (b.getTypeId() == 75 || b.getTypeId() == 76) {
+        if (b.getTypeId() == 75 || b.getTypeId() == 76) { //Redstone torch (on/off)
             for (int i = 0; i < signList.size(); i++) {
                 LogicSign L = signList.get(i);
                 if (L.output.getX() == b.getX() && L.output.getY() == b.getY() && L.output.getZ() == b.getZ()) {
                     event.setCancelled(true);
                 }
             }
-        }
-        for (int i = 0; i < signList.size(); i++) {
-            LogicSign L = signList.get(i);
-            if ((b.getX() == L.coords[0]) && (b.getY() == L.coords[1]) && (b.getZ() == L.coords[2]) && (b.getWorld() == L.world)) {
-                removeLine(signList.get(i).toString());
-                signList.remove(i);
-                i--;
+        } else if (b.getTypeId() == 68) { //sign
+            for (int i = 0; i < signList.size(); i++) {
+                LogicSign L = signList.get(i);
+                if ((b.getX() == L.coords[0]) && (b.getY() == L.coords[1]) && (b.getZ() == L.coords[2]) && (b.getWorld() == L.world)) {
+                    removeLine(signList.get(i).toString());
+                    signList.remove(i);
+                    i--;
+                }
+            }
+        } else {
+            for (LogicSign ls : signList) {
+                org.bukkit.material.Sign s = (org.bukkit.material.Sign) getSign(ls.getBlock()).getData();
+                Block aBlock = ls.getBlock().getRelative(s.getAttachedFace());
+                if ((aBlock.getLocation().getX() == b.getLocation().getBlockX()) && (aBlock.getLocation().getY() == b.getLocation().getBlockY()) && (aBlock.getLocation().getZ() == b.getLocation().getBlockZ()) && (aBlock.getLocation().getWorld() == b.getLocation().getWorld())) {
+                    event.setCancelled(true);
+                    break;
+                }
             }
         }
     }
